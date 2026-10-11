@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #172126;
+  --cloud: #f4f7f5;
+  --line: #e2e9e5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--cloud);
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(
+      circle at 80% 0%,
+      rgba(216, 243, 230, 0.72),
+      transparent 30rem
+    ),
+    var(--cloud);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: #c8ead8;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-[1.5rem] border border-white/80 bg-white/80 shadow-soft backdrop-blur-xl;
+  }
+
+  .eyebrow {
+    @apply text-[0.68rem] font-bold uppercase tracking-[0.22em] text-sage;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-[#dfe8e2] bg-white px-4 py-3 text-sm text-ink outline-none transition placeholder:text-[#94a39b] focus:border-sage focus:ring-4 focus:ring-mint;
+  }
+
+  .button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#273941] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .button-soft {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-mint px-4 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-[#c8ead8] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .button-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[#64746c] transition hover:bg-[#edf4ef] hover:text-ink;
+  }
+}
