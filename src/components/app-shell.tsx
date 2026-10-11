@@ -38,7 +38,7 @@ import {
   updateUserAction,
 } from "@/lib/actions";
 import { loginAction, registerAction } from "@/lib/actions";
-import type { InterestMetric, Note, Post, User } from "@/lib/types";
+import type { InterestMetric, Note, Pagination, Post, User } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import { Avatar, EmptyState, FormError, Modal } from "@/components/ui";
@@ -53,6 +53,13 @@ export function AppShell() {
   const [authLoading, setAuthLoading] = useState(false);
   const [publicPosts, setPublicPosts] = useState<Post[]>([]);
   const [publicLoading, setPublicLoading] = useState(true);
+  const [publicPage, setPublicPage] = useState(1);
+  const [publicPagination, setPublicPagination] = useState<Pagination>({
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 0,
+  });
   const [modal, setModal] = useState<ModalKind>(null);
   const [editingItem, setEditingItem] = useState<Note | Post | User | null>(
     null,
@@ -65,11 +72,12 @@ export function AppShell() {
   const [toast, setToast] = useState("");
 
   useEffect(() => {
-    void listPublicPostsAction(1, 6).then((result) => {
+    void listPublicPostsAction(publicPage, 6).then((result) => {
       setPublicPosts(result.data?.posts ?? []);
+      if (result.data?.pagination) setPublicPagination(result.data.pagination);
       setPublicLoading(false);
     });
-  }, []);
+  }, [publicPage]);
 
   function notify(message: string) {
     setToast(message);
@@ -81,6 +89,8 @@ export function AppShell() {
       <PublicHome
         posts={publicPosts}
         loading={publicLoading}
+        pagination={publicPagination}
+        onPageChange={setPublicPage}
         authMode={authMode}
         setAuthMode={setAuthMode}
         message={authMessage}
@@ -162,6 +172,7 @@ export function AppShell() {
         )}
         {activeView === "posts" && (
           <PostsView
+            key={postScope?.id ?? "all"}
             refreshKey={refreshKey}
             scope={postScope}
             clearScope={() => setPostScope(null)}
@@ -262,6 +273,8 @@ export function AppShell() {
 function PublicHome({
   posts,
   loading,
+  pagination,
+  onPageChange,
   authMode,
   setAuthMode,
   message,
@@ -270,6 +283,8 @@ function PublicHome({
 }: {
   posts: Post[];
   loading: boolean;
+  pagination: Pagination;
+  onPageChange: (page: number) => void;
   authMode: "login" | "register";
   setAuthMode: (mode: "login" | "register") => void;
   message: string;
@@ -342,7 +357,7 @@ function PublicHome({
             </div>
           ) : posts.length ? (
             <div className="grid gap-4 md:grid-cols-3">
-              {posts.slice(0, 3).map((post) => (
+              {posts.map((post) => (
                 <PublicPostCard key={post.id} post={post} />
               ))}
             </div>
@@ -352,6 +367,10 @@ function PublicHome({
               text="Be the first person to share a thoughtful post."
             />
           )}
+          <PaginationControls
+            pagination={pagination}
+            onPageChange={onPageChange}
+          />
         </section>
       </main>
       <footer className="mx-auto flex max-w-[1440px] justify-between border-t border-[#dfe9e2] px-5 py-7 text-xs font-semibold uppercase tracking-[0.15em] text-[#91a198] sm:px-8 lg:px-12">
@@ -729,6 +748,42 @@ function SectionHeader({
   );
 }
 
+function PaginationControls({
+  pagination,
+  onPageChange,
+}: {
+  pagination: Pagination;
+  onPageChange: (page: number) => void;
+}) {
+  if (pagination.totalPages <= 1) return null;
+
+  return (
+    <div className="mt-7 flex items-center justify-between gap-4 text-sm text-[#7b8b82]">
+      <span>
+        Page {pagination.page} of {pagination.totalPages}
+      </span>
+      <div className="flex gap-2">
+        <button
+          className="button-ghost p-2"
+          disabled={pagination.page === 1}
+          onClick={() => onPageChange(pagination.page - 1)}
+          aria-label="Previous page"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <button
+          className="button-ghost p-2"
+          disabled={pagination.page === pagination.totalPages}
+          onClick={() => onPageChange(pagination.page + 1)}
+          aria-label="Next page"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NotesView({
   refreshKey,
   session,
@@ -743,18 +798,26 @@ function NotesView({
   onCreate: () => void;
 }) {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
-    void listNotesAction(session.accessToken).then((result) => {
+    void listNotesAction(session.accessToken, page, 6).then((result) => {
       if (!active) return;
       setNotes(result.data?.notes ?? []);
+      if (result.data?.pagination) setPagination(result.data.pagination);
       setLoading(false);
     });
     return () => {
       active = false;
     };
-  }, [session.accessToken, refreshKey]);
+  }, [page, refreshKey, session.accessToken]);
   async function remove(id: string) {
     if (!window.confirm("Delete this note permanently?")) return;
     const result = await deleteNoteAction(session.accessToken, id);
@@ -815,6 +878,7 @@ function NotesView({
           text="Start with a thought, a question, or something you want to remember."
         />
       )}
+      <PaginationControls pagination={pagination} onPageChange={setPage} />
     </>
   );
 }
@@ -837,21 +901,29 @@ function PostsView({
   onCreate: () => void;
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
     const request = scope
-      ? listUserPostsAction(scope.id, 1, 50)
-      : listPublicPostsAction(1, 50);
+      ? listUserPostsAction(scope.id, page, 6)
+      : listPublicPostsAction(page, 6);
     void request.then((result) => {
       if (!active) return;
       setPosts(result.data?.posts ?? []);
+      if (result.data?.pagination) setPagination(result.data.pagination);
       setLoading(false);
     });
     return () => {
       active = false;
     };
-  }, [refreshKey, scope]);
+  }, [page, refreshKey, scope]);
   async function remove(id: string) {
     if (!window.confirm("Remove this post?")) return;
     const result = await deletePostAction(session.accessToken, id);
@@ -940,6 +1012,7 @@ function PostsView({
           text="Share the first thoughtful idea with the room."
         />
       )}
+      <PaginationControls pagination={pagination} onPageChange={setPage} />
     </>
   );
 }
@@ -958,18 +1031,26 @@ function UsersView({
   onViewPosts: (user: User) => void;
 }) {
   const [users, setUsers] = useState<User[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
-    void listUsersAction(session.accessToken).then((result) => {
+    void listUsersAction(session.accessToken, page, 6).then((result) => {
       if (!active) return;
       setUsers(result.data?.users ?? []);
+      if (result.data?.pagination) setPagination(result.data.pagination);
       setLoading(false);
     });
     return () => {
       active = false;
     };
-  }, [session.accessToken]);
+  }, [page, session.accessToken]);
   async function remove(id: string) {
     if (!window.confirm("Remove this member?")) return;
     const result = await deleteUserAction(session.accessToken, id);
@@ -989,7 +1070,7 @@ function UsersView({
       <div className="panel overflow-hidden">
         <div className="flex items-center justify-between border-b border-[#e7eee9] px-5 py-4">
           <p className="text-sm font-semibold text-[#73847a]">
-            {users.length} registered members
+            {pagination.total} registered members
           </p>
           <div className="flex items-center gap-2 rounded-xl bg-[#f4f8f5] px-3 py-2 text-xs text-[#8a9890]">
             <Search size={14} /> Search-ready directory
@@ -1046,17 +1127,28 @@ function UsersView({
           </div>
         )}
       </div>
+      <PaginationControls pagination={pagination} onPageChange={setPage} />
     </>
   );
 }
 
 function AnalyticsView({ session }: { session: { accessToken: string } }) {
   const [metrics, setMetrics] = useState<InterestMetric[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 0,
+  });
   useEffect(() => {
-    void listInterestMetricsAction(session.accessToken).then((result) =>
-      setMetrics(result.data?.interests ?? []),
+    void listInterestMetricsAction(session.accessToken, page, 6).then(
+      (result) => {
+        setMetrics(result.data?.interests ?? []);
+        if (result.data?.pagination) setPagination(result.data.pagination);
+      },
     );
-  }, [session.accessToken]);
+  }, [page, session.accessToken]);
   const max = Math.max(...metrics.map((metric) => metric.userCount), 1);
   return (
     <>
@@ -1107,6 +1199,17 @@ function AnalyticsView({ session }: { session: { accessToken: string } }) {
                       style={{ width: `${(metric.userCount / max) * 100}%` }}
                     />
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {metric.users.map((user) => (
+                      <span
+                        key={user.id}
+                        className="rounded-full bg-[#f1f6f2] px-3 py-1 text-xs font-semibold text-[#5f7568]"
+                        title={user.email}
+                      >
+                        {user.name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1116,6 +1219,7 @@ function AnalyticsView({ session }: { session: { accessToken: string } }) {
               text="Member interests will appear here as your directory grows."
             />
           )}
+          <PaginationControls pagination={pagination} onPageChange={setPage} />
         </div>
       </div>
     </>

@@ -37,7 +37,8 @@ The backend must be running at the URL configured by `NEXT_PUBLIC_API_URL`.
 - Authenticated post create, update, and delete flows
 - Ownership-aware post controls with admin override
 - Admin user list, create, update, and delete flows
-- Admin interest aggregation dashboard
+- Admin interest aggregation dashboard with grouped member identities
+- Pagination controls for notes, users, public posts, member posts, and interest groups
 - Responsive desktop/mobile workspace navigation
 - Loading, empty, validation, and API error states
 

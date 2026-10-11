@@ -192,9 +192,13 @@ export async function deleteUserAction(token: string, id: string) {
   return apiRequest<undefined>(`/users/${id}`, { method: "DELETE" }, token);
 }
 
-export async function listInterestMetricsAction(token: string) {
-  return apiRequest<{ interests: InterestMetric[] }>(
-    "/users/analytics/interests",
+export async function listInterestMetricsAction(
+  token: string,
+  page = 1,
+  limit = 6,
+) {
+  return apiRequest<{ interests: InterestMetric[]; pagination: Pagination }>(
+    `/users/analytics/interests?page=${page}&limit=${limit}`,
     {},
     token,
   );

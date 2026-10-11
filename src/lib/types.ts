@@ -53,4 +53,5 @@ export interface Session {
 export interface InterestMetric {
   interest: string;
   userCount: number;
+  users: User[];
 }
